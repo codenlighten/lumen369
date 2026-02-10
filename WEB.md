@@ -2,7 +2,8 @@
 
 ## Access
 
-**Domain:** http://lumenchat.org:3001  
+**Domain (HTTPS):** https://lumenchat.org 🔒  
+**Legacy HTTP:** http://lumenchat.org:3001  
 **Direct IP:** http://159.89.130.149:3001
 
 **Login Credentials:**
@@ -50,10 +51,13 @@ Terminal Executor (full host access)
 
 ## Security
 
+- **SSL/TLS encryption** via Let's Encrypt (expires 2026-05-11)
+- **Secure WebSocket** (wss://) for real-time communication
 - JWT authentication with 24h expiration
 - Secure WebSocket connection
 - Password protection
 - Admin-only access
+- Automatic HTTP → HTTPS redirect
 
 ## Port Configuration
 
@@ -63,9 +67,15 @@ Terminal Executor (full host access)
 
 ## Access Methods
 
-**Production:**
-- http://lumenchat.org:3001 (primary)
-- http://159.89.130.149:3001 (direct IP)
+**Production (Recommended):**
+- https://lumenchat.org (HTTPS with SSL)
+- Secure WebSocket (wss://)
+- Port 443 (standard HTTPS)
+- Automatic redirect from HTTP
+
+**Legacy Access:**
+- http://lumenchat.org:3001 (redirects to HTTPS)
+- http://159.89.130.149:3001 (direct to app server)
 
 **Local Testing:**
 ```bash

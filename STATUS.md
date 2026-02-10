@@ -97,6 +97,14 @@ Last Updated: 2026-02-10
     - lumen-web (PM2 ID: 7) - Web interface on port 3001
   - Deployed on: 159.89.130.149
 
+- **Nginx Reverse Proxy** - ✅ Deployed
+  - SSL/TLS encryption via Let's Encrypt
+  - Automatic HTTP → HTTPS redirect
+  - WebSocket (wss://) support
+  - Proxies to port 3001
+  - Certificate auto-renewal configured
+  - Serving: https://lumenchat.org
+
 - **Deployment Scripts** - ✅ Working
   - `deploy-pm2.sh` - PM2 direct deployment (current)
   - `deploy.sh` - Docker deployment (legacy)
@@ -170,12 +178,13 @@ Total: 29/29 tests passing
 ### Production Environment
 - **Host**: Digital Ocean Droplet (159.89.130.149)
 - **Domain**: lumenchat.org
+- **Web URL**: https://lumenchat.org 🔒
+- **SSL Certificate**: Let's Encrypt (expires 2026-05-11)
 - **Processes**: PM2 lumen-telegram + lumen-web
 - **Status**: Running (online)
 - **Access**: Full host filesystem and services
 - **Directory**: /opt/lumen-coder
-- **Ports**: 3001 (web interface)
-- **Web URL**: http://lumenchat.org:3001
+- **Ports**: 3001 (app), 80/443 (nginx reverse proxy)
 - **Uptime**: Current session started 2026-02-10
 
 ### Services on Droplet (All PM2)
