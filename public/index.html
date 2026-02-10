@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lumen Coder - AI Assistant</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #login-screen {
+      background: white;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      width: 90%;
+      max-width: 400px;
+    }
+
+    #login-screen h1 {
+      color: #667eea;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    #login-screen input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    #login-screen button {
+      width: 100%;
+      padding: 0.75rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    #login-screen button:hover {
+      background: #5568d3;
+    }
+
+    .error {
+      color: #e53e3e;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+
+    #chat-container {
+      display: none;
+      background: white;
+      width: 90%;
+      max-width: 1200px;
+      height: 90vh;
+      border-radius: 1rem;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #chat-header {
+      background: #667eea;
+      color: white;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #chat-header h1 {
+      font-size: 1.25rem;
+    }
+
+    #controls {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    #controls label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    #controls button {
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+
+    #controls button:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      background: #f7fafc;
+    }
+
+    .message {
+      margin-bottom: 1rem;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message.user {
+      text-align: right;
+    }
+
+    .message-content {
+      display: inline-block;
+      max-width: 80%;
+      padding: 0.75rem 1rem;
+      border-radius: 1rem;
+      line-height: 1.5;
+    }
+
+    .message.user .message-content {
+      background: #667eea;
+      color: white;
+    }
+
+    .message.assistant .message-content {
+      background: white;
+      color: #2d3748;
+      border: 1px solid #e2e8f0;
+    }
+
+    .message.system {
+      text-align: center;
+    }
+
+    .message.system .message-content {
+      background: #edf2f7;
+      color: #718096;
+      font-size: 0.875rem;
+      font-style: italic;
+    }
+
+    .message.error .message-content {
+      background: #fed7d7;
+      color: #c53030;
+    }
+
+    .code-block {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.875rem;
+      overflow-x: auto;
+      margin: 0.5rem 0;
+    }
+
+    .terminal-output {
+      background: #1a202c;
+      color: #68d391;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.875rem;
+      overflow-x: auto;
+      margin: 0.5rem 0;
+    }
+
+    #input-area {
+      padding: 1rem;
+      background: white;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    #message-input {
+      flex: 1;
+      padding: 0.75rem;
+      border: 2px solid #e2e8f0;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+
+    #message-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    #send-button {
+      padding: 0.75rem 1.5rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    #send-button:hover:not(:disabled) {
+      background: #5568d3;
+    }
+
+    #send-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .typing-indicator {
+      display: inline-flex;
+      gap: 0.25rem;
+      padding: 0.75rem 1rem;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 1rem;
+    }
+
+    .typing-indicator span {
+      width: 8px;
+      height: 8px;
+      background: #a0aec0;
+      border-radius: 50%;
+      animation: typing 1.4s infinite;
+    }
+
+    .typing-indicator span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .typing-indicator span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    @keyframes typing {
+      0%, 60%, 100% {
+        transform: translateY(0);
+      }
+      30% {
+        transform: translateY(-10px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="login-screen">
+    <h1>🤖 Lumen Coder</h1>
+    <input type="password" id="password-input" placeholder="Enter admin password" />
+    <button id="login-button">Login</button>
+    <div id="login-error" class="error"></div>
+  </div>
+
+  <!-- Chat Interface -->
+  <div id="chat-container">
+    <div id="chat-header">
+      <h1>🤖 Lumen Coder - AI Assistant</h1>
+      <div id="controls">
+        <label>
+          <input type="checkbox" id="auto-approve-toggle">
+          Auto-approve commands
+        </label>
+        <button id="stats-button">📊 Stats</button>
+        <button id="logout-button">🚪 Logout</button>
+      </div>
+    </div>
+    <div id="messages"></div>
+    <div id="input-area">
+      <input type="text" id="message-input" placeholder="Ask me anything..." />
+      <button id="send-button">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = window.location.origin;
+    const WS_URL = API_URL.replace('http', 'ws');
+    
+    let ws = null;
+    let token = null;
+    let isProcessing = false;
+
+    // DOM elements
+    const loginScreen = document.getElementById('login-screen');
+    const chatContainer = document.getElementById('chat-container');
+    const passwordInput = document.getElementById('password-input');
+    const loginButton = document.getElementById('login-button');
+    const loginError = document.getElementById('login-error');
+    const messagesDiv = document.getElementById('messages');
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-button');
+    const autoApproveToggle = document.getElementById('auto-approve-toggle');
+    const statsButton = document.getElementById('stats-button');
+    const logoutButton = document.getElementById('logout-button');
+
+    // Login
+    loginButton.addEventListener('click', async () => {
+      const password = passwordInput.value;
+      
+      try {
+        const response = await fetch(`${API_URL}/api/auth`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          token = data.token;
+          loginScreen.style.display = 'none';
+          chatContainer.style.display = 'flex';
+          connectWebSocket();
+        } else {
+          loginError.textContent = 'Invalid password';
+        }
+      } catch (error) {
+        loginError.textContent = 'Connection error';
+      }
+    });
+
+    passwordInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') loginButton.click();
+    });
+
+    // WebSocket connection
+    function connectWebSocket() {
+      ws = new WebSocket(WS_URL);
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        ws.send(JSON.stringify({ type: 'auth', token }));
+      };
+      
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        handleWebSocketMessage(message);
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        addMessage('system', 'Connection error');
+      };
+      
+      ws.onclose = () => {
+        console.log('WebSocket closed');
+        addMessage('system', 'Disconnected');
+      };
+    }
+
+    // Handle WebSocket messages
+    function handleWebSocketMessage(message) {
+      switch (message.type) {
+        case 'auth-success':
+          addMessage('system', 'Connected successfully');
+          break;
+          
+        case 'auth-failed':
+          addMessage('error', 'Authentication failed');
+          logout();
+          break;
+          
+        case 'status':
+          addMessage('system', message.message);
+          break;
+          
+        case 'response':
+          handleAgentResponse(message.data);
+          break;
+          
+        case 'execution':
+          handleExecutionResult(message.result);
+          break;
+          
+        case 'tool-response':
+          handleToolResponse(message.tool, message.data);
+          break;
+          
+        case 'complete':
+          isProcessing = false;
+          sendButton.disabled = false;
+          removeTypingIndicator();
+          break;
+          
+        case 'error':
+          addMessage('error', message.message);
+          isProcessing = false;
+          sendButton.disabled = false;
+          removeTypingIndicator();
+          break;
+          
+        case 'warning':
+          addMessage('system', message.message);
+          break;
+      }
+    }
+
+    // Handle agent response
+    function handleAgentResponse(data) {
+      if (data.choice === 'response') {
+        addMessage('assistant', data.response);
+      } else if (data.choice === 'code') {
+        addMessage('assistant', `**${data.language} Code:**\n\n${data.codeExplanation}`, data.code, data.language);
+      } else if (data.choice === 'terminalCommand') {
+        addMessage('assistant', `**Terminal Command:**\n\`${data.terminalCommand}\`\n\n${data.commandReasoning}`);
+      }
+    }
+
+    // Handle execution result
+    function handleExecutionResult(result) {
+      if (result.status === 'success') {
+        addMessage('assistant', '**Execution Result:**', result.stdout || 'Command executed successfully', 'terminal');
+      } else {
+        addMessage('error', `**Execution Failed:**\n${result.message}`);
+      }
+    }
+
+    // Handle tool response
+    function handleToolResponse(tool, data) {
+      if (data.fileTree) {
+        addMessage('assistant', '**File Tree:**', data.fileTree, 'tree');
+      } else if (data.summary) {
+        addMessage('assistant', `**Summary:**\n\n${data.summary}`);
+      }
+    }
+
+    // Add message to chat
+    function addMessage(type, text, code = null, codeType = null) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${type}`;
+      
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'message-content';
+      
+      // Format text with markdown-like syntax
+      let formattedText = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\n/g, '<br>');
+      
+      contentDiv.innerHTML = formattedText;
+      
+      if (code) {
+        const codeBlock = document.createElement('div');
+        codeBlock.className = codeType === 'terminal' ? 'terminal-output' : 'code-block';
+        codeBlock.textContent = code;
+        contentDiv.appendChild(codeBlock);
+      }
+      
+      messageDiv.appendChild(contentDiv);
+      messagesDiv.appendChild(messageDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Typing indicator
+    function addTypingIndicator() {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'message assistant';
+      messageDiv.id = 'typing-indicator';
+      
+      const indicator = document.createElement('div');
+      indicator.className = 'typing-indicator';
+      indicator.innerHTML = '<span></span><span></span><span></span>';
+      
+      messageDiv.appendChild(indicator);
+      messagesDiv.appendChild(messageDiv);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+      const indicator = document.getElementById('typing-indicator');
+      if (indicator) indicator.remove();
+    }
+
+    // Send message
+    function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text || isProcessing) return;
+      
+      addMessage('user', text);
+      messageInput.value = '';
+      
+      isProcessing = true;
+      sendButton.disabled = true;
+      addTypingIndicator();
+      
+      ws.send(JSON.stringify({
+        type: 'message',
+        text
+      }));
+    }
+
+    sendButton.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // Auto-approve toggle
+    autoApproveToggle.addEventListener('change', () => {
+      ws.send(JSON.stringify({
+        type: 'set-auto-approve',
+        value: autoApproveToggle.checked
+      }));
+    });
+
+    // Stats button
+    statsButton.addEventListener('click', async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/stats`);
+        const stats = await response.json();
+        
+        const statsText = `**Memory Statistics:**
+Total interactions: ${stats.totalInteractionsProcessed}
+Current stored: ${stats.currentInteractionsStored}
+Summaries: ${stats.summariesStored}
+Oldest: ${stats.oldestInteraction || 'N/A'}
+Newest: ${stats.newestInteraction || 'N/A'}`;
+        
+        addMessage('system', statsText);
+      } catch (error) {
+        addMessage('error', 'Failed to fetch stats');
+      }
+    });
+
+    // Logout
+    function logout() {
+      if (ws) ws.close();
+      token = null;
+      chatContainer.style.display = 'none';
+      loginScreen.style.display = 'block';
+      messagesDiv.innerHTML = '';
+      passwordInput.value = '';
+      loginError.textContent = '';
+    }
+
+    logoutButton.addEventListener('click', logout);
+  </script>
+</body>
+</html>
