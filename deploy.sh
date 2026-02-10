@@ -50,9 +50,7 @@ ssh ${DROPLET_USER}@${DROPLET_IP} << EOF
   docker run -d \
     --name ${APP_NAME} \
     --restart unless-stopped \
-    -e OPENAI_API_KEY=\${OPENAI_API_KEY} \
-    -e OPENAI_DEFAULT_MODEL=gpt-4o-mini \
-    -e OPENAI_DEFAULT_TEMPERATURE=0.1 \
+    --env-file ${DEPLOY_DIR}/.env \
     -v ${DEPLOY_DIR}/memory.json:/app/memory.json \
     -v ${DEPLOY_DIR}/audit.log:/app/audit.log \
     -v ${DEPLOY_DIR}/data:/app/data \
