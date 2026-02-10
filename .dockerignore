@@ -1,0 +1,6 @@
+# Docker deployment files
+*.tar.gz
+docker-compose.override.yml
+
+# Keep test files but don't deploy to production
+test-*.js
