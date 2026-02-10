@@ -10,6 +10,8 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_DEFAULT_MODEL=${OPENAI_DEFAULT_MODEL:-gpt-4o-mini}
       - OPENAI_DEFAULT_TEMPERATURE=${OPENAI_DEFAULT_TEMPERATURE:-0.1}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_ADMIN_ID=${TELEGRAM_ADMIN_ID}
       - NODE_ENV=production
     volumes:
       - ./memory.json:/app/memory.json

@@ -24,4 +24,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "console.log('healthy')" || exit 1
 
 # Keep container running - override CMD to run specific scripts
-CMD ["tail", "-f", "/dev/null"]
+# Use: docker run ... lumen-coder node telegram-bot.js
+# Or: docker exec -it lumen-coder node chat.js
+CMD ["node", "telegram-bot.js"]
