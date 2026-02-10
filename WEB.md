@@ -2,7 +2,8 @@
 
 ## Access
 
-**URL:** http://159.89.130.149:3001
+**Domain:** http://lumenchat.org:3001  
+**Direct IP:** http://159.89.130.149:3001
 
 **Login Credentials:**
 - Password: `LumenCode2026!`
@@ -60,8 +61,13 @@ Terminal Executor (full host access)
 - **Telegram Bot**: No port (webhook/polling)
 - **Dashboard**: 8080 (separate service)
 
-## Local Testing
+## Access Methods
 
+**Production:**
+- http://lumenchat.org:3001 (primary)
+- http://159.89.130.149:3001 (direct IP)
+
+**Local Testing:**
 ```bash
 # Start server locally
 npm start

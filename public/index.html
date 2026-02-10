@@ -310,7 +310,9 @@
 
   <script>
     const API_URL = window.location.origin;
-    const WS_URL = API_URL.replace('http', 'ws');
+    const WS_URL = window.location.protocol === 'https:' 
+      ? API_URL.replace('https', 'wss')
+      : API_URL.replace('http', 'ws');
     
     let ws = null;
     let token = null;

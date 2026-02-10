@@ -169,11 +169,13 @@ Total: 29/29 tests passing
 
 ### Production Environment
 - **Host**: Digital Ocean Droplet (159.89.130.149)
+- **Domain**: lumenchat.org
 - **Processes**: PM2 lumen-telegram + lumen-web
 - **Status**: Running (online)
 - **Access**: Full host filesystem and services
 - **Directory**: /opt/lumen-coder
 - **Ports**: 3001 (web interface)
+- **Web URL**: http://lumenchat.org:3001
 - **Uptime**: Current session started 2026-02-10
 
 ### Services on Droplet (All PM2)
