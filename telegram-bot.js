@@ -147,7 +147,7 @@ async function safeSendMessage(chatId, text, options = {}) {
   
   for (let i = 0; i < maxRetries; i++) {
     try {
-      return await safeSendMessage(chatId, text, options);
+      return await bot.sendMessage(chatId, text, options);
     } catch (error) {
       lastError = error;
       console.error(`Send message attempt ${i + 1} failed:`, error.message);
