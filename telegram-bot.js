@@ -47,8 +47,17 @@ const AVAILABLE_TOOLS = {
   }
 };
 
-// Initialize bot
-const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
+// Initialize bot with longer timeout and request options
+const bot = new TelegramBot(TELEGRAM_TOKEN, { 
+  polling: true,
+  request: {
+    agentOptions: {
+      keepAlive: true,
+      keepAliveMsecs: 10000
+    },
+    timeout: 60000 // 60 second timeout
+  }
+});
 
 console.log('🤖 Lumen Telegram Bot started...');
 
@@ -130,6 +139,30 @@ async function executeSpecializedTool(toolName, userQuery, memoryContext, chatId
 }
 
 /**
+ * Safely send message to Telegram with retry logic
+ */
+async function safeSendMessage(chatId, text, options = {}) {
+  const maxRetries = 3;
+  let lastError;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await safeSendMessage(chatId, text, options);
+    } catch (error) {
+      lastError = error;
+      console.error(`Send message attempt ${i + 1} failed:`, error.message);
+      if (i < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
+      }
+    }
+  }
+  
+  // If all retries failed, log and throw
+  console.error('Failed to send message after', maxRetries, 'attempts:', lastError);
+  throw lastError;
+}
+
+/**
  * Format response for Telegram (with markdown)
  */
 function formatResponse(response, includeMetadata = false) {
@@ -158,7 +191,7 @@ function formatResponse(response, includeMetadata = false) {
  */
 async function processMessage(chatId, userQuery) {
   try {
-    await bot.sendChatAction(chatId, 'typing');
+    try { try { await bot.sendChatAction(chatId, 'typing'); } catch (e) { /* ignore */ } } catch (e) { /* ignore */ }
     
     let continueLoop = true;
     let iteration = 0;
@@ -176,7 +209,7 @@ async function processMessage(chatId, userQuery) {
       // Send base response
       const baseMessage = formatResponse(baseResponse, true);
       if (baseMessage) {
-        await bot.sendMessage(chatId, baseMessage, { parse_mode: 'Markdown' });
+        await safeSendMessage(chatId, baseMessage, { parse_mode: 'Markdown' });
       }
       
       // Handle terminal commands
@@ -185,10 +218,10 @@ async function processMessage(chatId, userQuery) {
         
         if (baseResponse.requiresApproval && !autoApprove) {
           // Ask for approval
-          await bot.sendMessage(chatId, '⚠️ This command requires approval. Reply "yes" to execute or "no" to cancel.');
+          await safeSendMessage(chatId, '⚠️ This command requires approval. Reply "yes" to execute or "no" to cancel.');
           // Note: Would need to implement approval flow with message handlers
         } else {
-          await bot.sendMessage(chatId, '⚙️ Executing command...');
+          await safeSendMessage(chatId, '⚙️ Executing command...');
           
           const executionResult = await executeAgentCommand({
             command: baseResponse.terminalCommand,
@@ -213,9 +246,9 @@ async function processMessage(chatId, userQuery) {
           // Send execution result
           if (executionResult.status === 'success') {
             const output = executionResult.stdout || 'Command executed successfully';
-            await bot.sendMessage(chatId, `✅ *Success*\n\n\`\`\`\n${output.substring(0, 3000)}\n\`\`\``, { parse_mode: 'Markdown' });
+            await safeSendMessage(chatId, `✅ *Success*\n\n\`\`\`\n${output.substring(0, 3000)}\n\`\`\``, { parse_mode: 'Markdown' });
           } else {
-            await bot.sendMessage(chatId, `❌ *Error:* ${executionResult.message}`, { parse_mode: 'Markdown' });
+            await safeSendMessage(chatId, `❌ *Error:* ${executionResult.message}`, { parse_mode: 'Markdown' });
           }
           
           continueLoop = true; // Let agent process the result
@@ -224,14 +257,14 @@ async function processMessage(chatId, userQuery) {
       
       // Step 2: Tool choice if needed
       if (baseResponse.tool) {
-        await bot.sendChatAction(chatId, 'typing');
+        try { await bot.sendChatAction(chatId, 'typing'); } catch (e) { /* ignore */ }
         
         const updatedMemoryContext = await getMemoryContextString();
         const choiceResponse = await executeSchemaChoiceAgent(userQuery, updatedMemoryContext, chatId);
         
         // Execute specialized tool
         if (choiceResponse.choice && AVAILABLE_TOOLS[choiceResponse.choice]) {
-          await bot.sendMessage(chatId, `🛠️ Using ${choiceResponse.choice} tool...`);
+          await safeSendMessage(chatId, `🛠️ Using ${choiceResponse.choice} tool...`);
           
           const finalMemoryContext = await getMemoryContextString();
           const toolResponse = await executeSpecializedTool(
@@ -244,14 +277,14 @@ async function processMessage(chatId, userQuery) {
           if (toolResponse) {
             // Format and send tool response
             if (toolResponse.fileTree) {
-              await bot.sendMessage(chatId, `📁 *File Tree:*\n\n\`\`\`\n${toolResponse.fileTree}\n\`\`\``, { parse_mode: 'Markdown' });
+              await safeSendMessage(chatId, `📁 *File Tree:*\n\n\`\`\`\n${toolResponse.fileTree}\n\`\`\``, { parse_mode: 'Markdown' });
             } else if (toolResponse.summary) {
-              await bot.sendMessage(chatId, `📄 *Summary:*\n\n${toolResponse.summary}`, { parse_mode: 'Markdown' });
+              await safeSendMessage(chatId, `📄 *Summary:*\n\n${toolResponse.summary}`, { parse_mode: 'Markdown' });
             }
           }
           
           // Run base agent post-tool
-          await bot.sendChatAction(chatId, 'typing');
+          try { await bot.sendChatAction(chatId, 'typing'); } catch (e) { /* ignore */ }
           const postToolMemoryContext = await getMemoryContextString();
           const postToolResponse = await executeBaseAgent(
             'Process and respond based on the tool execution results',
@@ -261,7 +294,7 @@ async function processMessage(chatId, userQuery) {
           
           const postToolMessage = formatResponse(postToolResponse);
           if (postToolMessage) {
-            await bot.sendMessage(chatId, postToolMessage, { parse_mode: 'Markdown' });
+            await safeSendMessage(chatId, postToolMessage, { parse_mode: 'Markdown' });
           }
           
           continueLoop = postToolResponse.continue;
@@ -274,20 +307,20 @@ async function processMessage(chatId, userQuery) {
       }
       
       if (iteration >= maxIterations) {
-        await bot.sendMessage(chatId, '⚠️ Max iterations reached');
+        await safeSendMessage(chatId, '⚠️ Max iterations reached');
       }
     }
     
   } catch (error) {
     console.error('Error processing message:', error);
-    await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+    await safeSendMessage(chatId, `❌ Error: ${error.message}`);
   }
 }
 
 // Command handlers
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
-  await bot.sendMessage(chatId, 
+  await safeSendMessage(chatId, 
     '👋 *Welcome to Lumen Coder!*\n\n' +
     'I\'m an AI coding assistant with:\n' +
     '• Memory system (21 interactions + 3 summaries)\n' +
@@ -307,7 +340,7 @@ bot.onText(/\/stats/, async (msg) => {
   const chatId = msg.chat.id;
   try {
     const stats = await getMemoryStats();
-    await bot.sendMessage(chatId,
+    await safeSendMessage(chatId,
       `📊 *Memory Statistics*\n\n` +
       `Total interactions: ${stats.totalInteractionsProcessed}\n` +
       `Current stored: ${stats.currentInteractionsStored}\n` +
@@ -317,7 +350,7 @@ bot.onText(/\/stats/, async (msg) => {
       { parse_mode: 'Markdown' }
     );
   } catch (error) {
-    await bot.sendMessage(chatId, `❌ Error: ${error.message}`);
+    await safeSendMessage(chatId, `❌ Error: ${error.message}`);
   }
 });
 
@@ -327,7 +360,7 @@ bot.onText(/\/autoapprove/, async (msg) => {
   settings.autoApprove = !settings.autoApprove;
   userSettings.set(chatId, settings);
   
-  await bot.sendMessage(chatId,
+  await safeSendMessage(chatId,
     settings.autoApprove 
       ? '✅ Auto-approval ENABLED - Commands will execute automatically'
       : '⚠️ Auto-approval DISABLED - Commands will require confirmation',
@@ -340,12 +373,12 @@ bot.onText(/\/clear/, async (msg) => {
   
   // Only admin can clear
   if (ADMIN_CHAT_ID && chatId.toString() !== ADMIN_CHAT_ID) {
-    await bot.sendMessage(chatId, '❌ Admin only command');
+    await safeSendMessage(chatId, '❌ Admin only command');
     return;
   }
   
   // Would need to implement clearMemory function
-  await bot.sendMessage(chatId, '✅ Memory cleared (feature coming soon)');
+  await safeSendMessage(chatId, '✅ Memory cleared (feature coming soon)');
 });
 
 // Handle all text messages
