@@ -2,7 +2,7 @@
 
 Last Updated: 2026-02-10
 
-## 🎯 Current Version: v1.1.0
+## 🎯 Current Version: v1.2.0 (PM2 Direct Deployment)
 
 ### ✅ Completed Components
 
@@ -67,24 +67,24 @@ Last Updated: 2026-02-10
 - **Telegram Bot** (`telegram-bot.js`) - ✅ Production Ready
   - Full agent chain support
   - Memory system integration
-  - Terminal command execution
+  - Terminal command execution (full host access)
   - Code formatting with syntax highlighting
   - Commands: /start, /stats, /autoapprove, /clear
-  - Status: Deployed to droplet, running
+  - Status: Deployed via PM2 (direct host access)
 
 #### Deployment
-- **Docker Container** - ✅ Deployed
-  - Base image: node:20-alpine
-  - Volume mounts for persistence
-  - Health checks
-  - Environment variable support
-  - Current: v1.1.0 running on 159.89.130.149:3000
+- **PM2 Process** - ✅ Deployed
+  - Direct host access (no container isolation)
+  - Full filesystem access
+  - Can manage Docker, PM2, systemd
+  - Full networking capabilities
+  - Current: Running as lumen-telegram on 159.89.130.149
 
-- **Deployment Script** (`deploy.sh`) - ✅ Working
-  - Automated build
-  - Upload to droplet
-  - Container restart
-  - Version tracking
+- **Deployment Scripts** - ✅ Working
+  - `deploy-pm2.sh` - PM2 direct deployment (current)
+  - `deploy.sh` - Docker deployment (legacy)
+  - Git-based updates
+  - Automatic restart
 
 ### 🚧 In Progress
 
@@ -141,28 +141,36 @@ Total: 29/29 tests passing
 
 ### Production Environment
 - **Host**: Digital Ocean Droplet (159.89.130.149)
-- **Container**: lumen-coder:v1.1.0
-- **Status**: Running (healthy)
-- **Port**: 3000
+- **Process**: PM2 lumen-telegram
+- **Status**: Running (online)
+- **Access**: Full host filesystem and services
+- **Directory**: /opt/lumen-coder
 - **Uptime**: Current session started 2026-02-10
 
-### Other Services on Droplet
+### Services on Droplet (All PM2)
+- lumen-telegram - Telegram bot with full access (NEW)
 - lumen-caretaker - Docker guardian (port monitoring)
 - lumen-dashboard - Web UI (port 8080, JWT auth)
 - lumen-guardian - Telegram health monitoring
 
-## 📝 Recent Changes
+## 📝 R2.0 (2026-02-10)
+- **MAJOR**: Migrated from Docker to PM2 direct deployment
+- Full host access - no container restrictions
+- Can manage all droplet services (Docker, PM2, systemd)
+- Full filesystem access (/opt, /root, /var, etc.)
+- Enhanced system prompt with terminal capabilities
+- New deploy-pm2.sh script for PM2 deployments
+
+### v1.1.3 (2026-02-10)
+- Enhanced system prompt with terminal awareness
+- Fixed retry logic for Telegram API calls
+- Added exponential backoff for network errors
 
 ### v1.1.0 (2026-02-10)
 - Added Telegram bot integration
 - Full agent chain support via Telegram
 - Auto-approve mode for commands
 - Disabled conflicting telegram-listener.service
-- Updated documentation (TELEGRAM.md)
-
-### v1.0.2 (2026-02-08)
-- Initial Docker deployment
-- Memory system persistence
 - Chat interface operational
 - Terminal execution with approval
 
