@@ -30,6 +30,11 @@ ssh ${DROPLET_USER}@${DROPLET_IP} << EOF
   
   # Create deploy directory if it doesn't exist
   mkdir -p ${DEPLOY_DIR}
+  mkdir -p ${DEPLOY_DIR}/data
+  
+  # Create empty files if they don't exist
+  touch ${DEPLOY_DIR}/memory.json
+  touch ${DEPLOY_DIR}/audit.log
   
   # Load the Docker image
   echo "Loading Docker image..."
