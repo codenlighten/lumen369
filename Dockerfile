@@ -23,5 +23,5 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "console.log('healthy')" || exit 1
 
-# Default command - can be overridden
-CMD ["node", "chat.js"]
+# Keep container running - override CMD to run specific scripts
+CMD ["tail", "-f", "/dev/null"]

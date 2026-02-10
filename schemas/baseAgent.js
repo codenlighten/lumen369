@@ -71,7 +71,7 @@ export const baseAgentExtendedResponseSchema = {
     // Universal fields (applicable to all choices)
     continue: { 
       type: "boolean", 
-      description: "Whether this agent has more work to do and should be called again automatically" 
+      description: "Whether this agent has more reasoning or work to do and should be called again automatically" 
     }
   },
   required: ["choice", "response", "questionsForUser", "questions", "missingContext", "code", "language", "codeExplanation", "terminalCommand", "commandReasoning", "requiresApproval", "tool", "continue"],
