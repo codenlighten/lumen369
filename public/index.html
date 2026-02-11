@@ -150,34 +150,46 @@ body {
 }
 
 #chat-header {
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.75rem;
   background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid var(--glass-border);
   display: flex;
-  flex-direction: column;
+  /* Single row on mobile */
+  flex-direction: row;
   gap: 0.5rem;
-  align-items: stretch;
+  align-items: center;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 @media (min-width: 640px) {
   #chat-header {
     padding: 1.25rem 2rem;
-    flex-direction: row;
     justify-content: space-between;
-    align-items: center;
     gap: 0.75rem;
   }
 }
 
 #chat-header h1 {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   gap: 0.4rem;
   margin: 0;
   line-height: 1;
+  flex-shrink: 0;
+  /* Abbreviated text on mobile */
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+@media (max-width: 639px) {
+  /* Hide text content, keep emoji */
+  #chat-header h1 {
+    font-size: 1.25rem;
+    width: 30px;
+  }
 }
 
 @media (min-width: 640px) {
@@ -207,33 +219,44 @@ body {
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  flex-wrap: wrap;
+  /* Prevent wrapping on mobile - scroll instead */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* Hide scrollbar but keep functionality */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+#controls::-webkit-scrollbar {
+  display: none;
 }
 
 @media (min-width: 640px) {
   #controls {
     gap: 1rem;
-    flex-wrap: nowrap;
+    overflow-x: visible;
   }
 }
 
 #controls label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8rem;
+  gap: 0.4rem;
+  font-size: 0.75rem;
   cursor: pointer;
   color: var(--text-muted);
-  /* Touch-friendly tap target */
-  padding: 0.5rem;
-  margin: -0.5rem;
+  /* Compact on mobile */
+  padding: 0;
+  margin: 0;
+  white-space: nowrap;
 }
 
 @media (min-width: 640px) {
   #controls label {
     font-size: 0.875rem;
-    padding: 0;
-    margin: 0;
+    gap: 0.5rem;
     color: var(--text-main);
   }
 }
