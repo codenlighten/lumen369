@@ -77,3 +77,21 @@ export const baseAgentExtendedResponseSchema = {
   required: ["choice", "response", "questionsForUser", "questions", "missingContext", "code", "language", "codeExplanation", "terminalCommand", "commandReasoning", "requiresApproval", "tool", "continue"],
   additionalProperties: false
 };
+
+/**
+ * Request Fulfilled Schema
+ * 
+ * Simple boolean response indicating whether the user's request
+ * has been fully satisfied given the current conversation context.
+ */
+export const requestFulfilledSchema = {
+  type: "object",
+  properties: {
+    requestFulfilled: {
+      type: "boolean",
+      description: "Whether the user's request has been fully fulfilled"
+    }
+  },
+  required: ["requestFulfilled"],
+  additionalProperties: false
+};

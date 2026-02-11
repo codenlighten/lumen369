@@ -12,6 +12,7 @@ import { schemaChoiceAgentResponseSchema } from './schemas/schemaChoiceAgent.js'
 import { filetreeAgentResponseSchema } from './schemas/filetreeAgent.js';
 import { summarizeAgentResponseSchema } from './schemas/summarizeAgent.js';
 import { executeAgentCommand } from './lib/terminalExecutor.js';
+import { checkRequestFulfilled } from './lib/requestFulfilled.js';
 import { 
   addInteraction, 
   getMemoryContextString,
@@ -240,6 +241,7 @@ async function processMessage(chatId, userQuery) {
       
       // Get current memory context
       const memoryContext = await getMemoryContextString();
+      let shouldContinueFromThinking = false;
       
       // Step 1: Base Agent
       const baseResponse = await executeBaseAgent(redactedQuery, memoryContext, chatId, redactor);
@@ -248,6 +250,27 @@ async function processMessage(chatId, userQuery) {
       const baseMessage = formatResponse(baseResponse, true);
       if (baseMessage) {
         await safeSendMessage(chatId, baseMessage, { parse_mode: 'Markdown' });
+      }
+
+      // Step 1.5: Thinking check (show reasoning to user)
+      try {
+        const fulfillment = await checkRequestFulfilled(redactedQuery, memoryContext);
+        if (fulfillment && fulfillment.requestFulfilled === false) {
+          shouldContinueFromThinking = true;
+        }
+
+        const thinkingPrompt = `Thinking step: assess whether the user's request is fully satisfied based on the response and memory.\n\n` +
+          `User request: ${redactedQuery}\n\n` +
+          `Request fulfilled: ${fulfillment?.requestFulfilled === true ? 'true' : 'false'}. ` +
+          `Respond concisely with whether to continue and why.`;
+
+        const thinkingResponse = await executeBaseAgent(thinkingPrompt, memoryContext, chatId, redactor);
+
+        if (thinkingResponse?.response) {
+          await safeSendMessage(chatId, `🧠 *Thinking Check:* ${thinkingResponse.response}`, { parse_mode: 'Markdown' });
+        }
+      } catch (error) {
+        console.warn('Thinking check failed:', error.message);
       }
       
       // Handle terminal commands
@@ -343,6 +366,9 @@ async function processMessage(chatId, userQuery) {
       } else if (baseResponse.continue) {
         continueLoop = true;
         // Keep using redacted query for continuations
+      } else if (shouldContinueFromThinking) {
+        continueLoop = true;
+        userQuery = 'Continue processing based on previous context';
       } else {
         continueLoop = false;
       }
