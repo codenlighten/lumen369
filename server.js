@@ -22,6 +22,7 @@ import {
   getMemoryContextString,
   getMemoryStats 
 } from './lib/memorySystem.js';
+import { SecretRedactor } from './lib/secretRedactor.js';
 
 dotenv.config();
 
@@ -55,20 +56,44 @@ const AVAILABLE_TOOLS = {
 /**
  * Execute the base agent
  */
-async function executeBaseAgent(userQuery, memoryContext, sessionId) {
+async function executeBaseAgent(userQuery, memoryContext, sessionId, redactor = null) {
   const request = {
     query: userQuery,
     context: memoryContext,
     sessionId
   };
   
+  // Add secret redaction context if available
+  let enhancedContext = memoryContext;
+  if (redactor && redactor.hasSecrets()) {
+    const secretContext = buildPlaceholderContext(redactor);
+    enhancedContext = memoryContext ? `${memoryContext}\n\n${secretContext}` : secretContext;
+  }
+  
   const response = await queryOpenAI(userQuery, {
     schema: baseAgentExtendedResponseSchema,
-    context: memoryContext
+    context: enhancedContext
   });
   
   await addInteraction(request, response);
   return response;
+}
+
+/**
+ * Build context string explaining placeholders to AI
+ */
+function buildPlaceholderContext(redactor) {
+  const report = redactor.getReport();
+  if (report.secretsProtected === 0) return '';
+  
+  const placeholderList = report.placeholders
+    .map(p => `- ${p.placeholder}: ${p.type} (use this EXACT placeholder in commands)`)
+    .join('\n');
+  
+  return `🔒 SECURITY CONTEXT - ${report.secretsProtected} secret(s) protected:
+${placeholderList}
+
+IMPORTANT: When generating commands, use these EXACT placeholder strings. They will be substituted with real values during execution. Never attempt to guess or fabricate the actual values.`;
 }
 
 /**
@@ -128,6 +153,22 @@ async function executeSpecializedTool(toolName, userQuery, memoryContext, sessio
  */
 async function processMessage(userQuery, ws, sessionId, autoApprove = false) {
   try {
+    // Create secret redactor for this session
+    const redactor = new SecretRedactor();
+    
+    // Redact secrets from user query
+    const redactedQuery = redactor.redact(userQuery);
+    
+    // Log redaction if secrets were found
+    if (redactor.hasSecrets()) {
+      const report = redactor.getReport();
+      console.log(`🔒 [${sessionId}] Protected ${report.secretsProtected} secret(s)`);
+      ws.send(JSON.stringify({ 
+        type: 'status', 
+        message: `🔒 ${report.secretsProtected} secret(s) protected` 
+      }));
+    }
+    
     let continueLoop = true;
     let iteration = 0;
     const maxIterations = 5;
@@ -139,7 +180,7 @@ async function processMessage(userQuery, ws, sessionId, autoApprove = false) {
       
       // Step 1: Base Agent
       ws.send(JSON.stringify({ type: 'status', message: 'Processing...' }));
-      const baseResponse = await executeBaseAgent(userQuery, memoryContext, sessionId);
+      const baseResponse = await executeBaseAgent(redactedQuery, memoryContext, sessionId, redactor);
       
       // Send base response
       ws.send(JSON.stringify({ 
@@ -150,10 +191,13 @@ async function processMessage(userQuery, ws, sessionId, autoApprove = false) {
       
       // Handle terminal commands
       if (baseResponse.choice === 'terminalCommand') {
+        // Substitute secrets back into the command
+        const finalCommand = redactor.substitute(baseResponse.terminalCommand);
+        
         if (baseResponse.requiresApproval && !autoApprove) {
           ws.send(JSON.stringify({ 
             type: 'approval', 
-            command: baseResponse.terminalCommand,
+            command: finalCommand,
             reasoning: baseResponse.commandReasoning 
           }));
           // Wait for user approval (handled by client)
@@ -162,7 +206,7 @@ async function processMessage(userQuery, ws, sessionId, autoApprove = false) {
           ws.send(JSON.stringify({ type: 'status', message: 'Executing command...' }));
           
           const executionResult = await executeAgentCommand({
-            command: baseResponse.terminalCommand,
+            command: finalCommand,
             commandReasoning: baseResponse.commandReasoning,
             requiresApproval: baseResponse.requiresApproval
           }, {
@@ -194,7 +238,7 @@ async function processMessage(userQuery, ws, sessionId, autoApprove = false) {
         ws.send(JSON.stringify({ type: 'status', message: 'Selecting tool...' }));
         
         const updatedMemoryContext = await getMemoryContextString();
-        const choiceResponse = await executeSchemaChoiceAgent(userQuery, updatedMemoryContext, sessionId);
+        const choiceResponse = await executeSchemaChoiceAgent(redactedQuery, updatedMemoryContext, sessionId);
         
         if (choiceResponse.choice && AVAILABLE_TOOLS[choiceResponse.choice]) {
           ws.send(JSON.stringify({ 
@@ -236,7 +280,7 @@ async function processMessage(userQuery, ws, sessionId, autoApprove = false) {
         }
       } else if (baseResponse.continue) {
         continueLoop = true;
-        userQuery = 'Continue processing based on previous context';
+        // Keep using redacted query for continuations
       } else {
         continueLoop = false;
       }

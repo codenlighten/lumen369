@@ -17,6 +17,7 @@ import {
   getMemoryContextString,
   getMemoryStats 
 } from './lib/memorySystem.js';
+import { SecretRedactor } from './lib/secretRedactor.js';
 
 // Load environment variables
 import dotenv from 'dotenv';
@@ -64,22 +65,46 @@ console.log('🤖 Lumen Telegram Bot started...');
 /**
  * Execute the base agent
  */
-async function executeBaseAgent(userQuery, memoryContext, chatId) {
+async function executeBaseAgent(userQuery, memoryContext, chatId, redactor = null) {
   const request = {
     query: userQuery,
     context: memoryContext,
     chatId
   };
   
+  // Add secret redaction context if available
+  let enhancedContext = memoryContext;
+  if (redactor && redactor.hasSecrets()) {
+    const secretContext = buildPlaceholderContext(redactor);
+    enhancedContext = memoryContext ? `${memoryContext}\n\n${secretContext}` : secretContext;
+  }
+  
   const response = await queryOpenAI(userQuery, {
     schema: baseAgentExtendedResponseSchema,
-    context: memoryContext
+    context: enhancedContext
   });
   
   // Store interaction in memory
   await addInteraction(request, response);
   
   return response;
+}
+
+/**
+ * Build context string explaining placeholders to AI
+ */
+function buildPlaceholderContext(redactor) {
+  const report = redactor.getReport();
+  if (report.secretsProtected === 0) return '';
+  
+  const placeholderList = report.placeholders
+    .map(p => `- ${p.placeholder}: ${p.type} (use this EXACT placeholder in commands)`)
+    .join('\n');
+  
+  return `🔒 SECURITY CONTEXT - ${report.secretsProtected} secret(s) protected:
+${placeholderList}
+
+IMPORTANT: When generating commands, use these EXACT placeholder strings. They will be substituted with real values during execution. Never attempt to guess or fabricate the actual values.`;
 }
 
 /**
@@ -191,6 +216,19 @@ function formatResponse(response, includeMetadata = false) {
  */
 async function processMessage(chatId, userQuery) {
   try {
+    // Create secret redactor for this session
+    const redactor = new SecretRedactor();
+    
+    // Redact secrets from user query
+    const redactedQuery = redactor.redact(userQuery);
+    
+    // Log redaction if secrets were found
+    if (redactor.hasSecrets()) {
+      const report = redactor.getReport();
+      console.log(`🔒 [${chatId}] Protected ${report.secretsProtected} secret(s)`);
+      await safeSendMessage(chatId, `🔒 ${report.secretsProtected} secret(s) protected`);
+    }
+    
     try { try { await bot.sendChatAction(chatId, 'typing'); } catch (e) { /* ignore */ } } catch (e) { /* ignore */ }
     
     let continueLoop = true;
@@ -204,7 +242,7 @@ async function processMessage(chatId, userQuery) {
       const memoryContext = await getMemoryContextString();
       
       // Step 1: Base Agent
-      const baseResponse = await executeBaseAgent(userQuery, memoryContext, chatId);
+      const baseResponse = await executeBaseAgent(redactedQuery, memoryContext, chatId, redactor);
       
       // Send base response
       const baseMessage = formatResponse(baseResponse, true);
@@ -214,6 +252,9 @@ async function processMessage(chatId, userQuery) {
       
       // Handle terminal commands
       if (baseResponse.choice === 'terminalCommand') {
+        // Substitute secrets back into the command
+        const finalCommand = redactor.substitute(baseResponse.terminalCommand);
+        
         const autoApprove = userSettings.get(chatId)?.autoApprove || false;
         
         if (baseResponse.requiresApproval && !autoApprove) {
@@ -224,7 +265,7 @@ async function processMessage(chatId, userQuery) {
           await safeSendMessage(chatId, '⚙️ Executing command...');
           
           const executionResult = await executeAgentCommand({
-            command: baseResponse.terminalCommand,
+            command: finalCommand,
             commandReasoning: baseResponse.commandReasoning,
             requiresApproval: baseResponse.requiresApproval
           }, {
@@ -260,7 +301,7 @@ async function processMessage(chatId, userQuery) {
         try { await bot.sendChatAction(chatId, 'typing'); } catch (e) { /* ignore */ }
         
         const updatedMemoryContext = await getMemoryContextString();
-        const choiceResponse = await executeSchemaChoiceAgent(userQuery, updatedMemoryContext, chatId);
+        const choiceResponse = await executeSchemaChoiceAgent(redactedQuery, updatedMemoryContext, chatId);
         
         // Execute specialized tool
         if (choiceResponse.choice && AVAILABLE_TOOLS[choiceResponse.choice]) {
@@ -301,7 +342,7 @@ async function processMessage(chatId, userQuery) {
         }
       } else if (baseResponse.continue) {
         continueLoop = true;
-        userQuery = 'Continue processing based on previous context';
+        // Keep using redacted query for continuations
       } else {
         continueLoop = false;
       }
