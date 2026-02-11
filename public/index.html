@@ -488,8 +488,6 @@ body {
 /* Input Area */
 #input-area {
   padding: 0.75rem 1rem;
-  /* iOS safe area for home indicator */
-  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
   background: rgba(255, 255, 255, 0.05);
   border-top: 2px solid var(--glass-border);
   display: flex;
@@ -503,7 +501,6 @@ body {
 @media (min-width: 768px) {
   #input-area {
     padding: 1.5rem 2rem;
-    padding-bottom: 1.5rem;
     gap: 1rem;
     background: rgba(255, 255, 255, 0.02);
     border-top: 1px solid var(--glass-border);
@@ -617,6 +614,25 @@ body {
     transform: translateY(-10px);
   }
 }
+
+/* Footer */
+#footer {
+  text-align: center;
+  padding: 0.5rem 1rem;
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+  #footer {
+    font-size: 0.75rem;
+    padding: 0.75rem 2rem;
+  }
+}
   </style>
 </head>
 <body>
@@ -645,6 +661,9 @@ body {
     <div id="input-area">
       <input type="text" id="message-input" placeholder="Ask me anything..." />
       <button id="send-button">Send</button>
+    </div>
+    <div id="footer">
+      Copyright SmartLedger.Technology & Codenlighten.org 2026. All Rights Reserved.
     </div>
   </div>
 
