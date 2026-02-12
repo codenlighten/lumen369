@@ -18,6 +18,7 @@ import {
   getMemoryStats 
 } from './lib/memorySystem.js';
 import { SecretRedactor } from './lib/secretRedactor.js';
+import { MessageBuffer } from './lib/messageBuffer.js';
 
 // Load environment variables
 import dotenv from 'dotenv';
@@ -61,6 +62,25 @@ const bot = new TelegramBot(TELEGRAM_TOKEN, {
 });
 
 console.log('🤖 Lumen Telegram Bot started...');
+
+/**
+ * Initialize message buffer for batching
+ */
+const messageBuffer = new MessageBuffer({
+  debounceMs: 3000,
+  onFlush: async (chatId, messages) => {
+    console.log(`📦 [${chatId}] Processing batch of ${messages.length} message(s)`);
+    
+    // Combine messages into a single query
+    const combinedQuery = messages.map(m => m.text).join('\n');
+    
+    // Show typing indicator
+    try { await bot.sendChatAction(chatId, 'typing'); } catch (e) { /* ignore */ }
+    
+    // Process the combined batch
+    await processBatchedMessages(chatId, combinedQuery);
+  }
+});
 
 /**
  * System prompt defining Lumen's role and capabilities
@@ -259,9 +279,9 @@ function formatResponse(response, includeMetadata = false) {
 }
 
 /**
- * Process user message through agent chain
+ * Process batched messages through agent chain
  */
-async function processMessage(chatId, userQuery) {
+async function processBatchedMessages(chatId, userQuery) {
   try {
     // Create secret redactor for this session
     const redactor = new SecretRedactor();
@@ -484,7 +504,14 @@ bot.on('message', async (msg) => {
   }
   
   console.log(`[${chatId}] ${text}`);
-  await processMessage(chatId, text);
+  
+  // Add message to buffer (will be processed after 3s of silence)
+  const addedToCurrent = messageBuffer.addMessage(chatId, text);
+  
+  // Show typing indicator on first message in batch
+  if (addedToCurrent && !messageBuffer.isProcessing(chatId)) {
+    try { await bot.sendChatAction(chatId, 'typing'); } catch (e) { /* ignore */ }
+  }
 });
 
 // Error handling
