@@ -13,6 +13,7 @@ import { filetreeAgentResponseSchema } from './schemas/filetreeAgent.js';
 import { summarizeAgentResponseSchema } from './schemas/summarizeAgent.js';
 import { executeAgentCommand } from './lib/terminalExecutor.js';
 import { checkRequestFulfilled } from './lib/requestFulfilled.js';
+import { analyzeConversationHealth, generateReflectionMessage } from './lib/reflectionAgent.js';
 import { 
   addInteraction, 
   getMemoryContextString,
@@ -232,7 +233,17 @@ async function processMessage(chatId, userQuery) {
     
     try { try { await bot.sendChatAction(chatId, 'typing'); } catch (e) { /* ignore */ } } catch (e) { /* ignore */ }
     
-    let continueLoop = true;
+    // Check for conversation health issues and speak up if needed
+    const healthIssues = await analyzeConversationHealth();
+    if (healthIssues) {
+      const reflectionMessage = generateReflectionMessage(healthIssues);
+      if (reflectionMessage) {
+        console.log(`💭 [${chatId}] Reflection detected issues:`, healthIssues.map(i => i.type).join(', '));
+        await safeSendMessage(chatId, `💭 ${reflectionMessage}`);
+      }
+    }
+    
+    try { try { await bot.sendChatAction(chatId, 'typing'); } catch (e) { /* ignore */ } } catch (e) { /* ignore */ }
     let iteration = 0;
     const maxIterations = 5;
     
