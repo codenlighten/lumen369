@@ -387,11 +387,17 @@ async function processBatchedMessages(chatId, userQuery, landscape = null) {
           if (executionResult.status === 'success') {
             const output = executionResult.stdout || 'Command executed successfully';
             await safeSendMessage(chatId, `✅ *Success*\n\n\`\`\`\n${output.substring(0, 3000)}\n\`\`\``, { parse_mode: 'Markdown' });
+            
+            // Update query to prompt analysis of results
+            redactedQuery = `Analyze the command output and provide insights. What does this tell us? What should we do next?`;
+            continueLoop = true;
           } else {
             await safeSendMessage(chatId, `❌ *Error:* ${executionResult.message}`, { parse_mode: 'Markdown' });
+            
+            // Update query to prompt error analysis
+            redactedQuery = `The command failed with the error above. What went wrong and how can we fix it?`;
+            continueLoop = true;
           }
-          
-          continueLoop = true; // Let agent process the result
         }
       }
       
