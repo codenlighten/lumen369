@@ -319,7 +319,7 @@ async function processBatchedMessages(chatId, userQuery, landscape = null) {
     const redactor = new SecretRedactor();
     
     // Redact secrets from user query
-    const redactedQuery = redactor.redact(userQuery);
+    let redactedQuery = redactor.redact(userQuery);
     
     // Log redaction if secrets were found
     if (redactor.hasSecrets()) {
