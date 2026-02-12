@@ -18,7 +18,7 @@ import {
   getMemoryStats 
 } from './lib/memorySystem.js';
 import { SecretRedactor } from './lib/secretRedactor.js';
-import { MessageBuffer } from './lib/messageBuffer.js';
+import { TelegramPoller } from './lib/telegramPoller.js';
 
 // Load environment variables
 import dotenv from 'dotenv';
@@ -64,23 +64,29 @@ const bot = new TelegramBot(TELEGRAM_TOKEN, {
 console.log('🤖 Lumen Telegram Bot started...');
 
 /**
- * Initialize message buffer for batching
+ * Initialize Telegram Poller for strategic batch processing
  */
-const messageBuffer = new MessageBuffer({
-  debounceMs: 3000,
-  onFlush: async (chatId, messages) => {
-    console.log(`📦 [${chatId}] Processing batch of ${messages.length} message(s)`);
+const telegramPoller = new TelegramPoller(bot, {
+  interval: 3000,
+  onBatchReady: async (batch, landscape) => {
+    // Group messages by chat
+    const messagesByChat = new Map();
+    batch.forEach(msg => {
+      if (!messagesByChat.has(msg.chat.id)) {
+        messagesByChat.set(msg.chat.id, []);
+      }
+      messagesByChat.get(msg.chat.id).push(msg);
+    });
     
-    // Combine messages into a single query
-    const combinedQuery = messages.map(m => m.text).join('\n');
-    
-    // Show typing indicator
-    try { await bot.sendChatAction(chatId, 'typing'); } catch (e) { /* ignore */ }
-    
-    // Process the combined batch
-    await processBatchedMessages(chatId, combinedQuery);
+    // Process each chat's messages
+    for (const [chatId, messages] of messagesByChat) {
+      await processMessageBatch(chatId, messages, landscape);
+    }
   }
 });
+
+// Start the poller
+telegramPoller.start();
 
 /**
  * System prompt defining Lumen's role and capabilities
@@ -279,9 +285,35 @@ function formatResponse(response, includeMetadata = false) {
 }
 
 /**
+ * Process batched messages through agent chain with landscape context
+ */
+async function processMessageBatch(chatId, messages, landscape) {
+  try {
+    // Show typing indicator
+    try { await bot.sendChatAction(chatId, 'typing'); } catch (e) { /* ignore */ }
+    
+    // Step 1: Send general acknowledgment (if multiple messages or high priority)
+    if (messages.length > 1 || landscape.requiresImmediateAction) {
+      const ackMessage = `📋 Processing ${messages.length} message(s): ${landscape.situationSummary}`;
+      await safeSendMessage(chatId, ackMessage);
+    }
+    
+    // Step 2: Process messages based on landscape strategy
+    // Combine all messages into a single context for now
+    const combinedQuery = messages.map(m => m.text).join('\n');
+    
+    await processBatchedMessages(chatId, combinedQuery, landscape);
+    
+  } catch (error) {
+    console.error(`Error processing message batch for ${chatId}:`, error);
+    await safeSendMessage(chatId, `❌ Error: ${error.message}`);
+  }
+}
+
+/**
  * Process batched messages through agent chain
  */
-async function processBatchedMessages(chatId, userQuery) {
+async function processBatchedMessages(chatId, userQuery, landscape = null) {
   try {
     // Create secret redactor for this session
     const redactor = new SecretRedactor();
@@ -505,13 +537,8 @@ bot.on('message', async (msg) => {
   
   console.log(`[${chatId}] ${text}`);
   
-  // Add message to buffer (will be processed after 3s of silence)
-  const addedToCurrent = messageBuffer.addMessage(chatId, text);
-  
-  // Show typing indicator on first message in batch
-  if (addedToCurrent && !messageBuffer.isProcessing(chatId)) {
-    try { await bot.sendChatAction(chatId, 'typing'); } catch (e) { /* ignore */ }
-  }
+  // Enqueue message for batch processing
+  telegramPoller.enqueue(msg);
 });
 
 // Error handling
@@ -521,12 +548,14 @@ bot.on('polling_error', (error) => {
 
 process.on('SIGINT', () => {
   console.log('\n🛑 Shutting down Telegram bot...');
+  telegramPoller.stop();
   bot.stopPolling();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   console.log('\n🛑 Shutting down Telegram bot...');
+  telegramPoller.stop();
   bot.stopPolling();
   process.exit(0);
 });
