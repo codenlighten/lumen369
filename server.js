@@ -17,8 +17,6 @@ import { schemaChoiceAgentResponseSchema } from './schemas/schemaChoiceAgent.js'
 import { filetreeAgentResponseSchema } from './schemas/filetreeAgent.js';
 import { summarizeAgentResponseSchema } from './schemas/summarizeAgent.js';
 import { executeAgentCommand } from './lib/terminalExecutor.js';
-import { checkRequestFulfilled } from './lib/requestFulfilled.js';
-import { analyzeConversationHealth, generateReflectionMessage } from './lib/reflectionAgent.js';
 import { 
   addInteraction, 
   getMemoryContextString,
@@ -169,34 +167,6 @@ async function processMessage(userQuery, ws, sessionId, autoApprove = false) {
         type: 'status', 
         message: `🔒 ${report.secretsProtected} secret(s) protected` 
       }));
-    }
-    
-    // Check for conversation health issues and speak up if needed
-    const healthIssues = await analyzeConversationHealth();
-    if (healthIssues) {
-      const reflectionMessage = generateReflectionMessage(healthIssues);
-      if (reflectionMessage) {
-        console.log(`🧠 [${sessionId}] Reflection detected issues:`, healthIssues.map(i => i.type).join(', '));
-        ws.send(JSON.stringify({
-          type: 'response',
-          data: {
-            choice: 'response',
-            response: `🧠 ${reflectionMessage}`,
-            questionsForUser: false,
-            questions: [],
-            missingContext: [],
-            code: '',
-            language: '',
-            codeExplanation: '',
-            terminalCommand: '',
-            commandReasoning: '',
-            requiresApproval: false,
-            tool: false,
-            continue: false
-          },
-          reflection: true
-        }));
-      }
     }
     
     let continueLoop = true;
